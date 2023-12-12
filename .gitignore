@@ -1,0 +1,7 @@
+# Apptainer files
+.apptainer/
+*.sif
+
+# MATLAB licenses
+*.lic
+*.dat

@@ -1,0 +1,97 @@
+Bootstrap: docker
+From: mathworks/matlab:{{ MATLAB_RELEASE }}
+
+
+%labels
+    ############
+    # Metadata #
+    ############
+    author Theo Brown
+    maintainer Theo Brown
+    email theo.brown@ukaea.uk
+    description Container with MATLAB Engine and Python
+    version 0.0.1
+    date 2023-11-30
+
+%arguments
+    #######################################################
+    # Variables	defined	here can be used as substitutions #
+    # e.g. myvar=123 can be used by doing \{{ myvar \}}   #
+    #######################################################
+    # MATLAB settings
+    # Note: the host machine must have a license for this release
+    MATLAB_RELEASE=r2021b
+    TOOLBOXES=''
+
+    # Python settings
+    # Note: check versions.csv for supported versions
+    PYTHON_VERSION=3.9.7
+    MATLABENGINE_VERSION=9.11.21
+
+%files
+    ###########################################
+    # Files to copy to the container on build #
+    # Defined as <source> <destination>       #
+    ###########################################
+    check_version_compatibility.py /build/check_version_compatibility.py 
+    versions.csv /build/versions.csv
+
+%post
+    #################################################
+    # Commands to run inside the container on build #
+    #################################################
+    apt-get update
+    # Python dependencies
+    apt-get -y install make build-essential libssl-dev zlib1g-dev \
+       libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
+       libncurses5-dev libncursesw5-dev xz-utils tk-dev
+
+    cd /build 
+
+    ###########################
+    # Check for compatibility #
+    ###########################
+    python check_version_compatibility.py versions.csv {{ MATLAB_RELEASE}} {{ PYTHON_VERSION }} {{ MATLABENGINE_VERSION }}
+    if [ $? -ne 0 ]; then
+        echo "Compatibility check failed. Exiting..."
+        exit 1
+    fi
+    rm check_version_compatibility.py versions.csv
+
+    ############################
+    # Install MATLAB toolboxes #
+    ############################
+    if [ -n {{ TOOLBOXES }} ]; then
+        wget https://ssd.mathworks.com/supportfiles/downloads/mpm/2023.10.0.1/glnxa64/mpm
+        chmod +x mpm
+        ./mpm install \
+            --destination=$MATLAB_LOCATION \
+            --release={{ MATLAB_RELEASE }} \
+            --products {{ TOOLBOXES }}
+        rm -f mpm
+    fi
+
+    ##################
+    # Install Python #
+    ##################
+    wget https://www.python.org/ftp/python/{{ PYTHON_VERSION }}/Python-{{ PYTHON_VERSION }}.tgz
+    tar -xzf Python-{{ PYTHON_VERSION }}.tgz
+    cd Python-{{ PYTHON_VERSION }}
+    ./configure
+    make
+    make install
+
+    # Set up symbolic links
+    rm -f /usr/bin/python /usr/bin/pip
+    ln -s /usr/local/bin/python3 /usr/bin/python
+    ln -s /usr/local/bin/pip3 /usr/bin/pip
+
+    # Install packages
+    pip install --upgrade pip
+
+    ########################
+    # Install matlabengine #
+    ########################
+    MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))) 
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$MATLAB_LOCATION/bin/glnxa64
+    pip install matlabengine=={{ MATLABENGINE_VERSION }}
