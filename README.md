@@ -34,8 +34,8 @@ Apptainer> python
 ...
 >>> import matlab.engine
 >>> eng = matlab.engine.start_matlab("-nodisplay")
->>> eng.eval("0:0.1:1", nargout=1)
-matlab.double([[0.0,0.1,0.2,0.30000000000000004,0.4,0.5,0.6,0.7,0.8,0.9,1.0]])
+>>> eng.eval("version", nargout=1)
+'9.11.0.2358333 (R2021b) Update 7'
 ```
 
 ## Using as a bootstrap image
