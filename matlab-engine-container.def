@@ -10,8 +10,12 @@ From: mathworks/matlab:{{ MATLAB_RELEASE }}
     maintainer Theo Brown
     email theo.brown@ukaea.uk
     description Container with MATLAB Engine and Python
-    version 0.0.1
-    date 2023-11-30
+    org.opencontainers.image.source https://github.com/theo-brown/matlab-engine-container
+    matlab_release {{ MATLAB_RELEASE }}
+    python_version {{ PYTHON_VERSION }}
+    matlabengine_version {{ MATLABENGINE_VERSION }}
+    version 0.0.2
+    date 2023-12-13
 
 %arguments
     #######################################################
@@ -21,7 +25,6 @@ From: mathworks/matlab:{{ MATLAB_RELEASE }}
     # MATLAB settings
     # Note: the host machine must have a license for this release
     MATLAB_RELEASE=r2021b
-    TOOLBOXES=''
 
     # Python settings
     # Note: check versions.csv for supported versions
@@ -46,36 +49,32 @@ From: mathworks/matlab:{{ MATLAB_RELEASE }}
        libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
        libncurses5-dev libncursesw5-dev xz-utils tk-dev
 
-    cd /build 
-
     ###########################
     # Check for compatibility #
     ###########################
+    cd /build 
     python check_version_compatibility.py versions.csv {{ MATLAB_RELEASE}} {{ PYTHON_VERSION }} {{ MATLABENGINE_VERSION }}
     if [ $? -ne 0 ]; then
         echo "Compatibility check failed. Exiting..."
         exit 1
     fi
-    rm check_version_compatibility.py versions.csv
 
-    ############################
-    # Install MATLAB toolboxes #
-    ############################
-    if [ -n {{ TOOLBOXES }} ]; then
-        wget https://ssd.mathworks.com/supportfiles/downloads/mpm/2023.10.0.1/glnxa64/mpm
-        chmod +x mpm
-        ./mpm install \
-            --destination=$MATLAB_LOCATION \
-            --release={{ MATLAB_RELEASE }} \
-            --products {{ TOOLBOXES }}
-        rm -f mpm
-    fi
-
+    ##################################
+    # Install MATLAB package manager #
+    ##################################
+    mkdir /opt/mpm
+    cd /opt/mpm
+    wget https://ssd.mathworks.com/supportfiles/downloads/mpm/2023.10.0.1/glnxa64/mpm
+    chmod +x mpm
+    ln -s /opt/mpm/mpm /usr/bin/mpm
+    
     ##################
     # Install Python #
     ##################
+    cd /opt
     wget https://www.python.org/ftp/python/{{ PYTHON_VERSION }}/Python-{{ PYTHON_VERSION }}.tgz
     tar -xzf Python-{{ PYTHON_VERSION }}.tgz
+    rm Python-{{ PYTHON_VERSION }}.tgz
     cd Python-{{ PYTHON_VERSION }}
     ./configure
     make
